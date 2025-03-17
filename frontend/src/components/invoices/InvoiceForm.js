@@ -201,7 +201,7 @@ const InvoiceForm = ({ onSubmit, onNotification, isEditing }) => {
 
   return (
     <form onSubmit={handleSubmit} className="invoice-form">
-      <h2><FaFileInvoice /> Unloading Entry</h2>
+      <h2><FaFileInvoice /> Inward Entry</h2>
 
       <div className="form-section">
         <h3><FaBuilding /> Basic Information</h3>

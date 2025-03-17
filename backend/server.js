@@ -462,7 +462,6 @@ app.post('/api/entries', verifyToken, async (req, res) => {
     vehicleType,
     source,
     loadingUnload,
-    timeIn,
     timeOut,
     checkBy,
     remarks,
@@ -470,6 +469,7 @@ app.post('/api/entries', verifyToken, async (req, res) => {
   } = req.body;
 
   const userId = req.user.id;
+  const timeIn = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); // Set current time
 
   // Start transaction
   db.beginTransaction(async (err) => {
@@ -945,7 +945,7 @@ app.get('/api/driver-info/:mobile', verifyToken, (req, res) => {
 
   const query = `
     SELECT driverName 
-    FROM driverInfo 
+    FROM driverinfo 
     WHERE driverMobile = ? 
     COLLATE utf8mb4_general_ci
     LIMIT 1
@@ -954,7 +954,7 @@ app.get('/api/driver-info/:mobile', verifyToken, (req, res) => {
   db.query(query, [mobile], (err, results) => {
     if (err) {
       console.error('Error fetching driver info:', err);
-      return res.status(500).json({ message: 'Internal server error' });
+      return res.status(500).json({ message: 'Internal server error', error: err.message });
     }
     if (results.length === 0) {
       return res.status(404).json({ message: 'Driver not found' });
@@ -978,7 +978,7 @@ app.post('/api/driver-info', verifyToken, (req, res) => {
   }
 
   const query = `
-    INSERT INTO driverInfo (driverMobile, driverName) 
+    INSERT INTO driverinfo (driverMobile, driverName) 
     VALUES (?, ?) 
     ON DUPLICATE KEY UPDATE driverName = ?
   `;

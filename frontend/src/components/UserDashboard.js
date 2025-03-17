@@ -80,6 +80,7 @@ function UserDashboard() {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [otherPurpose, setOtherPurpose] = useState('');
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -91,6 +92,17 @@ function UserDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [invoices, setInvoices] = useState([]);
 
+  const handlePurposeChange = (e) => {
+    const { value } = e.target;
+    setFormData(prevState => ({
+      ...prevState,
+      loadingUnload: value
+    }));
+    if (value !== 'Other') {
+      setOtherPurpose('');
+    }
+  };
+
   const [filters, /*setFilters*/] = useState({
     search: '',
     vehicleType: '',
@@ -100,16 +112,16 @@ function UserDashboard() {
     endDate: null
   });
 
-  // const [columnFilters, setColumnFilters] = useState({
-  //   date: [],
-  //   driverName: [],
-  //   vehicleType: [],
-  //   source: [],
-  //   loadingUnload: [],
-  //   checkBy: [],
-  // });
+  const [columnFilters, setColumnFilters] = useState({
+    date: [],
+    driverName: [],
+    vehicleType: [],
+    source: [],
+    loadingUnload: [],
+    checkBy: [],
+  });
 
-  // const [activeFilter, setActiveFilter] = useState(null);
+  const [activeFilter, setActiveFilter] = useState(null);
 
   const [editingInvoice, setEditingInvoice] = useState(null);
 
@@ -166,27 +178,27 @@ function UserDashboard() {
     return token;
   }, [navigate]);
 
-  // const fetchUserData = useCallback(async () => {
-  //   const token = getToken();
-  //   if (!token) return;
+  const fetchUserData = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
 
-  //   try {
-  //     const response = await axios.get(`${API_BASE_URL}/api/user-data`, {
-  //       headers: { Authorization: `Bearer ${token}` }
-  //     });
-  //     setUserData({
-  //       name: response.data.name,
-  //       loading: false,
-  //       error: null
-  //     });
-  //   } catch (error) {
-  //     setUserData(prev => ({
-  //       ...prev,
-  //       loading: false,
-  //       error: 'Failed to fetch user data'
-  //     }));
-  //   }
-  // }, [getToken]);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/user-data`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserData({
+        name: response.data.name,
+        loading: false,
+        error: null
+      });
+    } catch (error) {
+      setUserData(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to fetch user data'
+      }));
+    }
+  }, [getToken]);
 
   const fetchUserProfile = useCallback(async () => {
     const token = getToken();
@@ -304,14 +316,14 @@ function UserDashboard() {
   const handleDriverMobileChange = async (e) => {
     const mobile = e.target.value.trim(); // Remove any whitespace
     setFormData(prev => ({ ...prev, driverMobile: mobile }));
-    
+
     if (mobile.length >= 10) {
       try {
         const token = localStorage.getItem('token');
         const response = await axios.get(`${API_BASE_URL}/api/driver-info/${encodeURIComponent(mobile)}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        
+
         if (response.data && response.data.driverName) {
           setFormData(prev => ({ 
             ...prev, 
@@ -319,16 +331,20 @@ function UserDashboard() {
             driverMobile: mobile // Ensure mobile number is set correctly
           }));
           addNotification('Driver information found and auto-filled', 'success');
+        } else {
+          setFormData(prev => ({ ...prev, driverName: '' }));
         }
       } catch (error) {
         console.error('Error fetching driver info:', error);
         if (error.response && error.response.status === 404) {
-          // Clear driver name if no match found
           setFormData(prev => ({ ...prev, driverName: '' }));
+        } else if (error.response && error.response.status === 500) {
+          addNotification('Server error occurred while fetching driver info', 'error');
+        } else {
+          addNotification('Only numbers are accepted', 'error');
         }
       }
     } else {
-      // Clear driver name if mobile number is too short
       setFormData(prev => ({ ...prev, driverName: '' }));
     }
   };
@@ -404,6 +420,12 @@ function UserDashboard() {
       return;
     }
 
+    // Automatically set current time for timeIn if not provided
+    if (!formData.timeIn) {
+      const currentTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      formData.timeIn = currentTime;
+    }
+
     try {
       // Save driver info
       await axios.post(`${API_BASE_URL}/api/driver-info`, {
@@ -429,15 +451,10 @@ function UserDashboard() {
         );
       }
 
-      // const unitsList = userUnits.map(unit => `Unit ${unit.unit_number}`).join(', ');
-      // const submissionData = {
-      //   ...formData,
-      //   recordedBy: `${userData.name} (${unitsList})`
-      // };
-
-      // const response = await axios.post(`${API_BASE_URL}/api/entries`, submissionData, {
-      //   headers: { Authorization: `Bearer ${token}` }
-      // });
+      // Submit the entry
+      const response = await axios.post(`${API_BASE_URL}/api/entries`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
       setSubmitState({
         loading: false,
@@ -457,7 +474,7 @@ function UserDashboard() {
         vehicleType: '',
         source: '',
         loadingUnload: '',
-        timeIn: '',
+        timeIn: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), // Set current time
         timeOut: '',
         checkBy: '',
         remarks: ''
@@ -541,16 +558,9 @@ function UserDashboard() {
       return;
     }
 
-    // Add validation for date to prevent future dates
+    // Prevent date from being changed
     if (name === 'date') {
-      const selectedDate = new Date(value);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset time part for proper date comparison
-      
-      if (selectedDate > today) {
-        // If future date is selected, keep the previous value
-        return;
-      }
+      return;
     }
 
     setFormData(prevState => ({
@@ -566,7 +576,7 @@ function UserDashboard() {
     try {
       await fetchEntries();
       await fetchInvoices();
-      addNotification('Data refreshed successfully', 'success');
+     
     } catch (error) {
       addNotification('Failed to refresh data', 'error');
     }
@@ -753,8 +763,13 @@ function UserDashboard() {
   }, [fetchUserProfile, fetchUserUnits, fetchEntries, fetchInvoices]);
 
   useEffect(() => {
-    fetchEntries();
-  }, [fetchEntries, activeSection]);
+    if (activeSection === 'form') {
+      setFormData(prevState => ({
+        ...prevState,
+        timeIn: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) // Set current time
+      }));
+    }
+  }, [activeSection]);
 
   const handlePageChange = (newPage) => {
     setEntriesData(prev => ({ ...prev, page: newPage }));
@@ -764,6 +779,17 @@ function UserDashboard() {
   //   setFilters(prev => ({ ...prev, [filterType]: value }));
   //   setEntriesData(prev => ({ ...prev, page: 1 }));
   // };
+
+  const handleSectionChange = (section) => {
+    setActiveSection(section);
+    handleRefresh();
+    if (section === 'form') {
+      setFormData(prevState => ({
+        ...prevState,
+        timeIn: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) // Set current time
+      }));
+    }
+  };
 
   const renderProfile = () => {
     return (
@@ -961,7 +987,7 @@ function UserDashboard() {
         <div className="sidebar-menu">
           <button 
             className={`menu-item ${activeSection === 'form' ? 'active' : ''}`}
-            onClick={() => setActiveSection('form')}
+            onClick={() => handleSectionChange('form')}
           >
             <FaClipboardList className="menu-icon" />
             {isSidebarOpen && <span>Outward Entry</span>}
@@ -969,7 +995,7 @@ function UserDashboard() {
 
           <button 
             className={`menu-item ${activeSection === 'invoice-form' ? 'active' : ''}`}
-            onClick={() => setActiveSection('invoice-form')}
+            onClick={() => handleSectionChange('invoice-form')}
           >
             <FaFileInvoice className="menu-icon" />
             {isSidebarOpen && <span>Inward Entry</span>}
@@ -977,7 +1003,7 @@ function UserDashboard() {
 
           <button 
             className={`menu-item ${activeSection === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveSection('history')}
+            onClick={() => handleSectionChange('history')}
           >
             <FaHistory className="menu-icon" />
             {isSidebarOpen && <span>Outward History</span>}
@@ -985,7 +1011,7 @@ function UserDashboard() {
 
           <button 
             className={`menu-item ${activeSection === 'invoices' ? 'active' : ''}`}
-            onClick={() => setActiveSection('invoices')}
+            onClick={() => handleSectionChange('invoices')}
           >
             <FaHistory className="menu-icon" />
             {isSidebarOpen && <span>Inward History</span>}
@@ -1101,9 +1127,8 @@ function UserDashboard() {
                     className="form-control"
                     value={formData.date}
                     onChange={handleChange}
-                    max={new Date().toISOString().split('T')[0]}
                     required
-                    disabled={submitState.loading}
+                    disabled
                   />
                 </div>
 
@@ -1121,7 +1146,7 @@ function UserDashboard() {
                     onChange={handleDriverMobileChange}
                     required
                     disabled={submitState.loading}
-                    placeholder="Enter 10 digit mobile number"
+                    placeholder="Enter number"
                     pattern="[0-9]{10}"
                     maxLength="10"
                   />
@@ -1228,24 +1253,46 @@ function UserDashboard() {
   </div>
 </div>
 
-                <div className="form-group">
-                  <label htmlFor="loadingUnload">
-                    <FaTruck className="label-icon" />
-                    Purpose
-                  </label>
-                  <select
-                    id="loadingUnload"
-                    name="loadingUnload"
-                    className="form-control"
-                    value={formData.loadingUnload}
-                    onChange={handleChange}
-                    required
-                    disabled={submitState.loading}
-                  >
-                    <option value="">Select Purpose</option>
-                    <option value="Loading">Loading</option>
-                  </select>
-                </div>
+{/* <div className="form-group">
+  <label htmlFor="loadingUnload">
+    <FaTruck className="label-icon" />
+    Purpose
+  </label>
+  <select
+    id="loadingUnload"
+    name="loadingUnload"
+    className="form-control"
+    value={formData.loadingUnload}
+    onChange={handlePurposeChange}
+    required
+    disabled={submitState.loading}
+  >
+    <option value="">Select Purpose</option>
+    <option value="Sale">Sale</option>
+    <option value="Inter Unit Transfer">Inter Unit Transfer</option>
+    <option value="RGP">RGP</option>
+    <option value="Other">Other</option>
+  </select>
+</div> */}
+{formData.loadingUnload === 'Other' && (
+  <div className="form-group">
+    <label htmlFor="otherPurpose">
+      <FaTruck className="label-icon" />
+      Specify Other Purpose
+    </label>
+    <input
+      type="text"
+      id="otherPurpose"
+      name="otherPurpose"
+      className="form-control"
+      value={otherPurpose}
+      onChange={(e) => setOtherPurpose(e.target.value)}
+      required
+      disabled={submitState.loading}
+      placeholder="Enter purpose"
+    />
+  </div>
+)}
 
                 <div className="form-group">
                   <label htmlFor="timeIn">
@@ -1258,13 +1305,11 @@ function UserDashboard() {
                     name="timeIn"
                     className="form-control"
                     value={formData.timeIn}
-                    onChange={handleChange}
-                    required
-                    disabled={submitState.loading}
+                    readOnly // Make the field non-editable
                   />
                 </div>
 
-                <div className="form-group">
+                {/* <div className="form-group">
                   <label htmlFor="timeOut">
                     <FaClock className="label-icon" />
                     Time Out
@@ -1278,7 +1323,7 @@ function UserDashboard() {
                     onChange={handleChange}
                     disabled={submitState.loading}
                   />
-                </div>
+                </div> */}
 
                 <div className="form-group">
                   <label htmlFor="checkBy">
@@ -1381,11 +1426,14 @@ function UserDashboard() {
                       <tr>
                         <th>Serial No.</th>
                         <th>Date</th>
-                        <th>Driver Details</th>
-                        <th>Vehicle Details</th>
+                        <th>Driver Mobile</th>
+                        <th>Driver Name</th>
+                        <th>Vehicle Number</th>
+                        <th>Vehicle Type</th>
                         <th>Source</th>
-                        <th>Loading/Unloading</th>
-                        <th>Time In/Out</th>
+                        <th>Purpose</th>
+                        <th>Time In</th>
+                        <th>Time Out</th>
                         <th>Checked By</th>
                         <th>Remarks</th>
                       </tr>
@@ -1413,37 +1461,15 @@ function UserDashboard() {
                         .map((entry) => (
                           <tr key={entry.id}>
                             <td>{entry.serialNumber}</td>
-                            <td>{new Date(entry.date).toLocaleDateString()}</td>
-                            <td>
-                              <div className="driver-details">
-                                <div>{entry.driverName}</div>
-                                {entry.driverMobile && (
-                                  <div className="mobile">
-                                    {entry.driverMobile}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td>
-                              <div className="vehicle-details">
-                                <div>{entry.vehicleNumber}</div>
-                                <div className="type">
-                                  <FaTruck className="icon-small" /> {entry.vehicleType}
-                                </div>
-                              </div>
-                            </td>
+                            <td>{new Date(entry.date).toLocaleDateString()}</td> 
+                            <td>{entry.driverMobile}</td>
+                            <td>{entry.driverName}</td>
+                            <td>{entry.vehicleNumber}</td>
+                            <td>{entry.vehicleType}</td>
                             <td>{entry.source}</td>
-                            <td>
-                              <span className={`status ${entry.loadingUnload?.toLowerCase()}`}>
-                                {entry.loadingUnload}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="time-details">
-                                <div>In: {entry.timeIn}</div>
-                                {entry.timeOut && <div>Out: {entry.timeOut}</div>}
-                              </div>
-                            </td>
+                            <td>{entry.loadingUnload} </td>
+                            <td>{entry.timeIn}</td>
+                            <td>{entry.timeOut}</td>
                             <td>{entry.checkBy}</td>
                             <td>{entry.remarks}</td>
                           </tr>

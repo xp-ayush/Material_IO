@@ -4163,3 +4163,61 @@ input[type="date"]:invalid + .form-text.text-muted {
   align-items: center;
   gap: 8px;
 }
+
+/* ...existing code... */
+
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+  white-space: nowrap;
+}
+
+.entries-table,
+.invoices-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Ensure table fits within the container */
+}
+
+.entries-table th,
+.invoices-table th,
+.entries-table td,
+.invoices-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  white-space: normal; /* Allow text to wrap within cells */
+}
+
+.entries-table th,
+.invoices-table th {
+  background-color: var(--background-color);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.entries-table td,
+.invoices-table td {
+  color: var(--text-secondary);
+}
+
+/* Scrollbar styling */
+.table-container::-webkit-scrollbar {
+  height: 10px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 5px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* ...existing code... */
