@@ -1253,7 +1253,7 @@ function UserDashboard() {
   </div>
 </div>
 
-{ <div className="form-group">
+{/* <div className="form-group">
   <label htmlFor="loadingUnload">
     <FaTruck className="label-icon" />
     Purpose
@@ -1273,7 +1273,7 @@ function UserDashboard() {
     <option value="RGP">RGP</option>
     <option value="Other">Other</option>
   </select>
-</div> }
+</div> */}
 {formData.loadingUnload === 'Other' && (
   <div className="form-group">
     <label htmlFor="otherPurpose">
